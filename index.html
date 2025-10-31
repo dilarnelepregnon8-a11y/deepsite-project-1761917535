@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatDL - Messagerie Instantanée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chat-container {
+            height: calc(100vh - 80px);
+        }
+        .message-input {
+            resize: none;
+        }
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid white;
+        }
+        .dark .online-indicator {
+            border-color: #1f2937;
+        }
+        .unread-count {
+            min-width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .typing-indicator::after {
+            content: '...';
+            animation: typing 1.5s infinite;
+        }
+        @keyframes typing {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+        .message-received {
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+        .message-sent {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .dark .message-received {
+            background-color: #374151;
+            color: white;
+        }
+        .dark .message-sent {
+            background-color: #1e40af;
+            color: white;
+        }
+        .badind-post {
+            transition: all 0.3s ease;
+        }
+        .badind-post:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .emoji-picker {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            z-index: 10;
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Barre de navigation -->
+    <nav class="bg-indigo-600 dark:bg-indigo-800 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-comment-dots text-2xl"></i>
+                <h1 class="text-xl font-bold">ChatDL</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-indigo-500 dark:hover:bg-indigo-700">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:block"></i>
+                </button>
+                <div class="relative">
+                    <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Profile" class="w-8 h-8 rounded-full">
+                    <div class="online-indicator"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenu principal -->
+    <div class="container mx-auto flex">
+        <!-- Barre latérale -->
+        <aside class="w-1/4 bg-white dark:bg-gray-800 border-r dark:border-gray-700 hidden md:block">
+            <div class="p-4 border-b dark:border-gray-700">
+                <div class="relative">
+                    <input type="text" placeholder="Rechercher..." class="w-full p-2 pl-10 rounded-lg bg-gray-100 dark:bg-gray-700 border-none focus:ring-2 focus:ring-indigo-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            
+            <!-- Onglets -->
+            <div class="flex border-b dark:border-gray-700">
+                <button id="chat-tab" class="flex-1 py-3 font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400">
+                    <i class="fas fa-comment-dots mr-2"></i>Chats
+                </button>
+                <button id="badind-tab" class="flex-1 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                    <i class="fas fa-globe mr-2"></i>Badind
+                </button>
+            </div>
+            
+            <!-- Liste des chats -->
+            <div id="chat-list" class="overflow-y-auto" style="height: calc(100vh - 180px);">
+                <!-- Contacts seront chargés ici -->
+            </div>
+        </aside>
+
+        <!-- Contenu du chat -->
+        <main class="flex-1 bg-gray-50 dark:bg-gray-900">
+            <!-- En-tête du chat -->
+            <div id="chat-header" class="p-4 border-b dark:border-gray-700 flex items-center bg-white dark:bg-gray-800">
+                <div id="back-button" class="mr-2 md:hidden">
+                    <button class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                </div>
+                <div class="relative mr-3">
+                    <img id="current-chat-avatar" src="https://randomuser.me/api/portraits/men/12.jpg" alt="Profile" class="w-10 h-10 rounded-full">
+                    <div id="online-status" class="online-indicator"></div>
+                </div>
+                <div class="flex-1">
+                    <h2 id="current-chat-name" class="font-medium">Thomas Leroy</h2>
+                    <p id="current-chat-status" class="text-xs text-gray-500 dark:text-gray-400">en ligne</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Messages -->
+            <div id="chat-messages" class="chat-container overflow-y-auto p-4 space-y-3">
+                <!-- Messages seront chargés ici -->
+            </div>
+            
+            <!-- Zone de saisie -->
+            <div class="p-3 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+                <div class="flex items-center">
+                    <button id="emoji-button" class="p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="far fa-smile"></i>
+                    </button>
+                    <button class="p-2 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <div class="flex-1 mx-2">
+                        <textarea id="message-input" class="message-input w-full p-2 rounded-lg bg-gray-100 dark:bg-gray-700 border-none focus:ring-2 focus:ring-indigo-500" placeholder="Écrivez un message..." rows="1"></textarea>
+                    </div>
+                    <button id="send-button" class="p-2 text-indigo-600 dark:text-indigo-400">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div id="emoji-picker" class="emoji-picker bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 w-64 h-64 overflow-y-auto">
+                    <!-- Emojis seront chargés ici -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts JavaScript -->
+    <script>
+        // Données de l'application
+        const contacts = [
+            {
+                id: 1,
+                name: "Marie Dupont",
+                avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+                status: "en ligne",
+                lastMessage: "Salut, ça va ?",
+                lastMessageTime: "12:30",
+                unread: 0,
+                messages: [
+                    { text: "Salut Jean, ça va ?", time: "12:30", sent: false },
+                    { text: "Oui et toi ? J'ai fini le projet dont on parlait", time: "12:32", sent: true },
+                    { text: "Super ! Tu peux m'envoyer les fichiers ?", time: "12:33", sent: false },
+                    { text: "Voici les captures d'écran", time: "12:35", sent: true, image: "https://via.placeholder.com/300x200" },
+                    { text: "Merci beaucoup ! Je regarde ça et je te donne mon avis", time: "12:36", sent: false }
+                ]
+            },
+            {
+                id: 2,
+                name: "Groupe Famille",
+                avatar: "https://randomuser.me/api/portraits/men/22.jpg",
+                status: "hier",
+                lastMessage: "Maman: On se voit ce weekend ?",
+                lastMessageTime: "Hier",
+                unread: 0,
+                messages: [
+                    { text: "Salut tout le monde !", time: "10:15", sent: false, sender: "Papa" },
+                    { text: "Salut !", time: "10:20", sent: true },
+                    { text: "On se voit ce weekend ?", time: "10:22", sent: false, sender: "Maman" }
+                ]
+            },
+            {
+                id: 3,
+                name: "Sophie Martin",
+                avatar: "https://randomuser.me/api/portraits/women/32.jpg",
+                status: "en ligne",
+                lastMessage: "Je t'envoie le fichier ce soir",
+                lastMessageTime: "Lun.",
+                unread: 0,
+                messages: [
+                    { text: "Tu as avancé sur le dossier ?", time: "09:45", sent: false },
+                    { text: "Oui, j'ai presque fini", time: "09:50", sent: true },
+                    { text: "Je t'envoie le fichier ce soir", time: "09:52", sent: false }
+                ]
+            },
+            {
+                id: 4,
+                name: "Thomas Leroy",
+                avatar: "https://randomuser.me/api/portraits/men/12.jpg",
+                status: "hors ligne",
+                lastMessage: "Merci pour ton aide !",
+                lastMessageTime: "Sam.",
+                unread: 3,
+                messages: [
+                    { text: "Salut, tu peux m'aider avec un problème ?", time: "14:20", sent: false },
+                    { text: "Bien sûr, de quoi s'agit-il ?", time: "14:25", sent: true },
+                    { text: "J'arrive pas à configurer le serveur", time: "14:26", sent: false },
+                    { text: "Je t'envoie un tuto", time: "14:30", sent: true },
+                    { text: "Merci pour ton aide !", time: "14:45", sent: false }
+                ]
+            }
+        ];
+
+        // Émojis pour le sélecteur
+        const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"];
+
+        // État de l'application
+        let currentChatId = 4;
+        let isTyping = false;
+        let isMobileView = window.innerWidth < 768;
+
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadContacts();
+            loadChat(currentChatId);
+            setupEventListeners();
+            checkMobileView();
+        });
+
+        // Charger la liste des contacts
+        function loadContacts() {
+            const chatList = document.getElementById('chat-list');
+            chatList.innerHTML = '';
+
+            contacts.forEach(contact => {
+                const contactElement = document.createElement('div');
+                contactElement.className = `p-3 border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center ${contact.unread > 0 ? 'bg-gray-100 dark:bg-gray-700' : ''}`;
+                contactElement.dataset.id = contact.id;
+                contactElement.innerHTML = `
+                    <div class="relative mr-3">
+                        <img src="${contact.avatar}" alt="Profile" class="w-10 h-10 rounded-full">
+                        ${contact.status === "en ligne" ? '<div class="online-indicator"></div>' : ''}
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-medium">${contact.name}</h3>
+                            <span class="text-xs text-gray-500">${contact.lastMessageTime}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 truncate">${contact.lastMessage}</p>
+                    </div>
+                    ${contact.unread > 0 ? `<div class="unread-count">${contact.unread}</div>` : ''}
+                `;
+                contactElement.addEventListener('click', () => {
+                    currentChatId = contact.id;
+                    loadChat(contact.id);
+                    if (isMobileView) {
+                        document.querySelector('aside').classList.add('hidden');
+                        document.querySelector('main').classList.remove('hidden');
+                    }
+                });
+                chatList.appendChild(contactElement);
+            });
+        }
+
+        // Charger un chat spécifique
+        function loadChat(chatId) {
+            const contact = contacts.find(c => c.id === chatId);
+            if (!contact) return;
+
+            // Mettre à jour l'en-tête du chat
+            document.getElementById('current-chat-avatar').src = contact.avatar;
+            document.getElementById('current-chat-name').textContent = contact.name;
+            document.getElementById('current-chat-status').textContent = contact.status;
+            document.getElementById('online-status').style.display = contact.status === "en ligne" ? 'block' : 'none';
+
+            // Charger les messages
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = '';
+
+            // Ajouter un séparateur de date (simplifié)
+            const dateSeparator = document.createElement('div');
+            dateSeparator.className = 'text-center text-xs text-gray-500 dark:text-gray-400 my
+</body>
+</html>
